@@ -66,30 +66,73 @@ function getSalesDateFromHTML() {
     return null;
 }
 
-// НОВАЯ ФУНКЦИЯ: Парсинг НДС
-function getVatAmount() {
-    try {
-        // Ищем все элементы, которые могут содержать текст "Podatek VAT"
-        // Используем textContent, так как элемент может быть скрыт (display: none)
-        // Класс .title внутри .popover-hint-content
-        const titleEls = document.querySelectorAll('.popover-hint-content .title');
+// НОВАЯ ФУНКЦИЯ: Асинхронное получение НДС с эмуляцией наведения
+async function getVatAmountAsync() {
+    // 1. Сначала попробуем найти, вдруг уже открыто
+    let vatVal = parseVatFromDom();
+    if (vatVal > 0) return vatVal;
 
-        for (let el of titleEls) {
-            const text = el.textContent || "";
+    // 2. Ищем иконку вопроса рядом с "Wliczono podatek VAT"
+    // Обычно она идет сразу после текста, либо внутри того же блока
+    // Попробуем найти span с текстом "Wliczono podatek VAT"
+    const allSpans = Array.from(document.querySelectorAll('span'));
+    const vatLabel = allSpans.find(s => s.textContent && s.textContent.includes('Wliczono podatek VAT'));
+
+    if (vatLabel) {
+        // Иконка обычно следующий элемент или внутри родителя
+        let icon = vatLabel.querySelector('.comet-icon-help');
+        if (!icon) icon = vatLabel.nextElementSibling?.querySelector('.comet-icon-help') || vatLabel.nextElementSibling;
+
+        // Если нашли иконку — "наводим" мышь
+        if (icon) {
+            console.log("Эмулируем наведение на иконку VAT...");
+
+            // События мыши для триггера React/Tooltip
+            const mouseOverEvent = new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window });
+            const mouseEnterEvent = new MouseEvent('mouseenter', { bubbles: true, cancelable: true, view: window });
+
+            icon.dispatchEvent(mouseOverEvent);
+            icon.dispatchEvent(mouseEnterEvent);
+
+            // Ждем 500 мс пока отрисуется попап
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Пробуем парсить снова
+            vatVal = parseVatFromDom();
+
+            // (Опционально) Убираем мышь, чтобы попап не висел, хотя это не критично
+            const mouseOut = new MouseEvent('mouseout', { bubbles: true });
+            icon.dispatchEvent(mouseOut);
+        }
+    }
+
+    return vatVal || 0;
+}
+
+// Хелпер: ищет текст в DOM
+function parseVatFromDom() {
+    try {
+        // Ищем во всех попапах
+        const hintContents = document.querySelectorAll('.popover-hint-content, .comet-popover-content');
+        for (let container of hintContents) {
+            // Ищем строку "Podatek VAT: X,XX"
+            const text = container.textContent || "";
             if (text.includes("Podatek VAT")) {
-                // Пример: "Podatek VAT: 5,63zł"
-                const cleanPrice = text.replace(/[^\d.,]/g, '').replace(',', '.');
-                return parseFloat(cleanPrice) || 0;
+                // Извлекаем цену. Пример: "Podatek VAT: 5,63zł"
+                // Регулярка ищет число после двоеточия
+                const match = text.match(/Podatek VAT:\s*([\d,.\s]+)/);
+                if (match) {
+                    const cleanPrice = match[1].replace(/[^\d.,]/g, '').replace(',', '.');
+                    return parseFloat(cleanPrice) || 0;
+                }
             }
         }
-    } catch (e) {
-        console.error("Ошибка парсинга НДС:", e);
-    }
+    } catch (e) { console.error(e); }
     return 0;
 }
 
-// 2. ГЛАВНАЯ ФУНКЦИЯ
-function scrapeData() {
+// 2. ГЛАВНАЯ ФУНКЦИЯ (Теперь ASYNC)
+async function scrapeData() {
     const urlParams = new URLSearchParams(window.location.search);
     const orderId = urlParams.get('orderId') || "---";
 
@@ -107,7 +150,9 @@ function scrapeData() {
     } catch (e) { console.error(e); }
 
     const parsedDate = getSalesDateFromHTML();
-    const parsedVat = getVatAmount(); // <-- Вызываем парсинг НДС
+
+    // ЖДЕМ получение НДС
+    const parsedVat = await getVatAmountAsync();
 
     return {
         orderId: orderId,
@@ -115,7 +160,7 @@ function scrapeData() {
         sellerName: "AliExpress Seller",
         lineItems: scrapeLineItems(),
         parsedTotalStr: totalOrderPrice,
-        totalVat: parsedVat, // <-- Передаем в генератор
+        totalVat: parsedVat,
         url: window.location.href
     };
 }
@@ -135,17 +180,25 @@ function injectButton() {
     span.innerText = "Faktura (PDF)";
     btn.appendChild(span);
 
-    btn.onclick = () => {
+    // ОБРАБОТЧИК теперь ASYNC
+    btn.onclick = async () => {
         const originalText = span.innerText;
-        span.innerText = "Pobieranie...";
+        span.innerText = "Pobieranie..."; // Индикатор работы, пока ждем 0.5 сек
         btn.disabled = true;
 
-        const data = scrapeData();
+        try {
+            // Ждем завершения скрапинга (включая ожидание попапа)
+            const data = await scrapeData();
 
-        chrome.runtime.sendMessage({ action: "openGenerator", data: data }, () => {
-            span.innerText = originalText;
-            btn.disabled = false;
-        });
+            chrome.runtime.sendMessage({ action: "openGenerator", data: data }, () => {
+                span.innerText = originalText;
+                btn.disabled = false;
+            });
+        } catch (e) {
+            console.error("Ошибка сбора данных:", e);
+            span.innerText = "Błąd!";
+            setTimeout(() => { span.innerText = originalText; btn.disabled = false; }, 2000);
+        }
     };
 
     targetContainer.appendChild(btn);
