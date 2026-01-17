@@ -5,13 +5,13 @@
     <title>Generator Faktury</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f9f9f9; width: 700px; margin: 0 auto; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f9f9f9; width: 750px; margin: 0 auto; }
         .container { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
 
         h2 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }
 
-        /* Сетка для шапки */
-        .header-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        /* Сетка для шапки: теперь 4 колонки для двух дат */
+        .header-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
         .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
         .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
 
@@ -25,29 +25,21 @@
         th { text-align: left; padding: 8px; background: #f0f0f0; border-bottom: 2px solid #ddd; }
         td { padding: 5px; border-bottom: 1px solid #eee; vertical-align: middle; }
 
-        /* Инпуты внутри таблицы */
         td input { width: 100%; padding: 5px; border: 1px solid transparent; background: transparent; }
         td input:focus { border-color: #aaa; background: white; }
         td input.qty { text-align: center; width: 40px; }
         td input.price { text-align: right; width: 80px; }
 
-        /* Стили иконки ссылки */
+        /* Иконка ссылки */
         .link-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            color: #666;
-            text-decoration: none;
-            border-radius: 4px;
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 24px; height: 24px; color: #666; text-decoration: none; border-radius: 4px;
         }
         .link-icon:hover { background-color: #eee; color: #000; }
         .link-icon svg { width: 16px; height: 16px; }
 
         .total-row { text-align: right; font-weight: bold; font-size: 16px; margin-top: 10px; }
 
-        /* Кнопки */
         .actions { margin-top: 20px; text-align: right; border-top: 1px solid #eee; padding-top: 20px; }
         button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
         .btn-primary { background: #d32f2f; color: white; }
@@ -71,7 +63,11 @@
             <input type="date" id="issueDate">
         </div>
         <div class="form-group">
-            <label>ID Zamówienia (AliExpress)</label>
+            <label>Data sprzedaży</label>
+            <input type="date" id="saleDate">
+        </div>
+        <div class="form-group">
+            <label>ID Zamówienia</label>
             <input type="text" id="orderId">
         </div>
     </div>
@@ -92,14 +88,14 @@
         <table id="itemsTable">
             <thead>
             <tr>
-                <th style="width: 30px;"></th> <th style="width: 50%">Nazwa towaru / usługi</th>
+                <th style="width: 30px;"></th>
+                <th style="width: 50%">Nazwa towaru / usługi</th>
                 <th style="width: 15%; text-align: center;">Ilość</th>
                 <th style="width: 15%; text-align: right;">Cena jedn.</th>
                 <th style="width: 15%; text-align: right;">Wartość</th>
             </tr>
             </thead>
-            <tbody id="itemsList">
-            </tbody>
+            <tbody id="itemsList"></tbody>
         </table>
 
         <div class="total-row">

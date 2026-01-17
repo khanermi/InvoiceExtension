@@ -4,26 +4,25 @@
         const buyerConfig = result.invoice_buyer_config || { name: "", taxId: "", addressFull: "" };
         const parsedData = result.tempInvoiceData || { lineItems: [], parsedTotalStr: "0" };
 
-        // 1. Инициализация данных
+        // 1. Инициализация товаров
         let calculatedItems = (parsedData.lineItems || []).map(item => ({
             ...item,
-            productUrl: item.productUrl || null, // Протягиваем URL, если есть
+            productUrl: item.productUrl || null,
             netUnitPrice: item.grossUnitPrice,
             vatRate: 0,
             totalGross: item.grossUnitPrice * item.quantity
         }));
 
-        // Считаем сумму
         const itemsSum = calculatedItems.reduce((acc, item) => acc + item.totalGross, 0);
         const totalOrderPrice = parseFloat((parsedData.parsedTotalStr || "0").replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
 
-        // Корректировка (Доставка/Скидка)
+        // Корректировка
         const difference = totalOrderPrice - itemsSum;
         if (Math.abs(difference) > 0.01) {
             const desc = difference > 0 ? "Koszt dostawy (Shipping)" : "Rabat / Kupon (Discount)";
             calculatedItems.push({
                 description: desc,
-                productUrl: null, // У доп. позиций ссылки нет
+                productUrl: null,
                 quantity: 1,
                 grossUnitPrice: difference,
                 netUnitPrice: difference,
@@ -32,12 +31,19 @@
             });
         }
 
+        // === ГЛАВНАЯ ЛОГИКА ДАТ ===
+        // Берем распарсенную дату или сегодня
+        const initialDate = parsedData.saleDate || new Date().toISOString().slice(0, 10);
+
         // 2. Объект модели
         const invoiceData = {
             invoiceHeader: {
                 invoiceNumber: parsedData.orderId ? `FV-${parsedData.orderId}` : `FV-${Date.now()}`,
                 orderId: parsedData.orderId || "---",
-                issueDate: parsedData.saleDate || new Date().toISOString().slice(0, 10)
+
+                // Устанавливаем обе даты одинаковыми
+                issueDate: initialDate,
+                saleDate: initialDate
             },
             seller: {
                 name: parsedData.sellerName || "AliExpress Seller",
@@ -64,7 +70,11 @@
         const data = window.currentInvoiceData;
 
         bindInput('invoiceNumber', data.invoiceHeader.invoiceNumber, (val) => data.invoiceHeader.invoiceNumber = val);
+
+        // Привязываем оба поля даты
         bindInput('issueDate', data.invoiceHeader.issueDate, (val) => data.invoiceHeader.issueDate = val);
+        bindInput('saleDate', data.invoiceHeader.saleDate, (val) => data.invoiceHeader.saleDate = val);
+
         bindInput('orderId', data.invoiceHeader.orderId, (val) => data.invoiceHeader.orderId = val);
 
         bindInput('sellerData', data.seller.rawText, (val) => updateParty(val, 'seller'));
@@ -98,7 +108,7 @@
         window.currentInvoiceData.lineItems.forEach((item, index) => {
             const tr = document.createElement('tr');
 
-            // 0. Колонка со ссылкой (Иконка)
+            // Иконка
             const tdLink = document.createElement('td');
             tdLink.style.textAlign = 'center';
             if (item.productUrl) {
@@ -107,15 +117,12 @@
                 a.target = "_blank";
                 a.className = "link-icon";
                 a.title = "Otwórz stronę produktu";
-
-                // SVG иконка (External Link)
                 a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
-
                 tdLink.appendChild(a);
             }
             tr.appendChild(tdLink);
 
-            // 1. Название
+            // Название
             const tdName = document.createElement('td');
             const inputName = document.createElement('input');
             inputName.value = item.description;
@@ -123,7 +130,7 @@
             tdName.appendChild(inputName);
             tr.appendChild(tdName);
 
-            // 2. Количество
+            // Количество
             const tdQty = document.createElement('td');
             const inputQty = document.createElement('input');
             inputQty.type = "number";
@@ -138,7 +145,7 @@
             tdQty.appendChild(inputQty);
             tr.appendChild(tdQty);
 
-            // 3. Цена
+            // Цена
             const tdPrice = document.createElement('td');
             const inputPrice = document.createElement('input');
             inputPrice.type = "number";
@@ -155,7 +162,7 @@
             tdPrice.appendChild(inputPrice);
             tr.appendChild(tdPrice);
 
-            // 4. Итог (readonly)
+            // Итог
             const tdTotal = document.createElement('td');
             const inputTotal = document.createElement('input');
             inputTotal.className = "price";
@@ -188,7 +195,6 @@
     document.getElementById('generatePdfBtn').addEventListener('click', () => {
         const data = window.currentInvoiceData;
 
-        // Таблица для PDF (без иконок, только текст)
         const tableBody = [
             [
                 { text: 'Nazwa towaru / usługi', style: 'tableHeader' },
@@ -222,8 +228,9 @@
                 { text: 'FAKTURA', style: 'header', alignment: 'right' },
                 { text: `Nr: ${data.invoiceHeader.invoiceNumber}`, alignment: 'right', bold: true },
 
-                // Одна дата (wystawienia) = распарсенная дата продажи
-                { text: `Data wystawienia: ${data.invoiceHeader.issueDate}`, alignment: 'right', margin: [0,0,0,20], fontSize: 10 },
+                // ОБЕ ДАТЫ
+                { text: `Data wystawienia: ${data.invoiceHeader.issueDate}`, alignment: 'right', fontSize: 10 },
+                { text: `Data sprzedaży: ${data.invoiceHeader.saleDate}`, alignment: 'right', margin: [0,0,0,20], fontSize: 10 },
 
                 {
                     columns: [
