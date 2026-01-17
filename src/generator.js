@@ -4,25 +4,26 @@
         const buyerConfig = result.invoice_buyer_config || { name: "", taxId: "", addressFull: "" };
         const parsedData = result.tempInvoiceData || { lineItems: [], parsedTotalStr: "0" };
 
-        // 1. Инициализация данных (первичный расчет)
+        // 1. Инициализация данных
         let calculatedItems = (parsedData.lineItems || []).map(item => ({
             ...item,
-            netUnitPrice: item.grossUnitPrice, // При 0% НДС
+            productUrl: item.productUrl || null, // Протягиваем URL, если есть
+            netUnitPrice: item.grossUnitPrice,
             vatRate: 0,
             totalGross: item.grossUnitPrice * item.quantity
         }));
 
-        // Считаем товары
+        // Считаем сумму
         const itemsSum = calculatedItems.reduce((acc, item) => acc + item.totalGross, 0);
-        // Парсим итог со страницы
         const totalOrderPrice = parseFloat((parsedData.parsedTotalStr || "0").replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
 
-        // Корректировка на доставку/скидку
+        // Корректировка (Доставка/Скидка)
         const difference = totalOrderPrice - itemsSum;
         if (Math.abs(difference) > 0.01) {
             const desc = difference > 0 ? "Koszt dostawy (Shipping)" : "Rabat / Kupon (Discount)";
             calculatedItems.push({
                 description: desc,
+                productUrl: null, // У доп. позиций ссылки нет
                 quantity: 1,
                 grossUnitPrice: difference,
                 netUnitPrice: difference,
@@ -31,12 +32,11 @@
             });
         }
 
-        // 2. Формируем главный объект данных
+        // 2. Объект модели
         const invoiceData = {
             invoiceHeader: {
                 invoiceNumber: parsedData.orderId ? `FV-${parsedData.orderId}` : `FV-${Date.now()}`,
                 orderId: parsedData.orderId || "---",
-                // Используем распарсенную дату продажи или сегодня
                 issueDate: parsedData.saleDate || new Date().toISOString().slice(0, 10)
             },
             seller: {
@@ -52,10 +52,9 @@
             sourceUrl: parsedData.url
         };
 
-        // Сохраняем в глобальную переменную
         window.currentInvoiceData = invoiceData;
 
-        // 3. Заполнение UI (Инициализация)
+        // 3. Заполнение UI
         initUI();
     });
 
@@ -64,7 +63,6 @@
     function initUI() {
         const data = window.currentInvoiceData;
 
-        // Привязка простых полей
         bindInput('invoiceNumber', data.invoiceHeader.invoiceNumber, (val) => data.invoiceHeader.invoiceNumber = val);
         bindInput('issueDate', data.invoiceHeader.issueDate, (val) => data.invoiceHeader.issueDate = val);
         bindInput('orderId', data.invoiceHeader.orderId, (val) => data.invoiceHeader.orderId = val);
@@ -75,14 +73,12 @@
         document.getElementById('sourceUrl').value = data.sourceUrl;
         const linkEl = document.getElementById('sourceLinkVisible');
         linkEl.href = data.sourceUrl;
-        linkEl.innerText = `Źródło: ${data.sourceUrl.substring(0, 40)}...`;
+        linkEl.innerText = `Źródło zamówienia: ${data.sourceUrl.substring(0, 40)}...`;
 
-        // Рендер таблицы товаров
         renderItemsTable();
         updateTotalDisplay();
     }
 
-    // Хелпер для привязки инпутов
     function bindInput(id, initialValue, updateCallback) {
         const el = document.getElementById(id);
         if (el) {
@@ -91,23 +87,33 @@
         }
     }
 
-    // Обновление текста продавца/покупателя
     function updateParty(text, type) {
-        // Мы просто сохраняем сырой текст для PDF, так проще редактировать
         window.currentInvoiceData[type].rawText = text;
-
-        // Попытка обновить имя для красоты (не обязательно для PDF, так как там мы возьмем rawText, если переделаем логику, или разобьем)
-        // Но для текущей структуры PDF нам нужно разделить name и address.
-        // Чтобы упростить: в PDF будем использовать rawText, разделенный по первой строке.
     }
 
-    // Рендер таблицы
     function renderItemsTable() {
         const tbody = document.getElementById('itemsList');
-        tbody.innerHTML = ''; // Очистка
+        tbody.innerHTML = '';
 
         window.currentInvoiceData.lineItems.forEach((item, index) => {
             const tr = document.createElement('tr');
+
+            // 0. Колонка со ссылкой (Иконка)
+            const tdLink = document.createElement('td');
+            tdLink.style.textAlign = 'center';
+            if (item.productUrl) {
+                const a = document.createElement('a');
+                a.href = item.productUrl;
+                a.target = "_blank";
+                a.className = "link-icon";
+                a.title = "Otwórz stronę produktu";
+
+                // SVG иконка (External Link)
+                a.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
+
+                tdLink.appendChild(a);
+            }
+            tr.appendChild(tdLink);
 
             // 1. Название
             const tdName = document.createElement('td');
@@ -115,6 +121,7 @@
             inputName.value = item.description;
             inputName.oninput = (e) => { item.description = e.target.value; };
             tdName.appendChild(inputName);
+            tr.appendChild(tdName);
 
             // 2. Количество
             const tdQty = document.createElement('td');
@@ -129,6 +136,7 @@
                 updateTotalDisplay();
             };
             tdQty.appendChild(inputQty);
+            tr.appendChild(tdQty);
 
             // 3. Цена
             const tdPrice = document.createElement('td');
@@ -139,12 +147,13 @@
             inputPrice.value = item.grossUnitPrice.toFixed(2);
             inputPrice.oninput = (e) => {
                 item.grossUnitPrice = parseFloat(e.target.value) || 0;
-                item.netUnitPrice = item.grossUnitPrice; // При 0% ват
+                item.netUnitPrice = item.grossUnitPrice;
                 recalculateRow(item);
                 inputTotal.value = item.totalGross.toFixed(2);
                 updateTotalDisplay();
             };
             tdPrice.appendChild(inputPrice);
+            tr.appendChild(tdPrice);
 
             // 4. Итог (readonly)
             const tdTotal = document.createElement('td');
@@ -153,11 +162,8 @@
             inputTotal.disabled = true;
             inputTotal.value = item.totalGross.toFixed(2);
             tdTotal.appendChild(inputTotal);
-
-            tr.appendChild(tdName);
-            tr.appendChild(tdQty);
-            tr.appendChild(tdPrice);
             tr.appendChild(tdTotal);
+
             tbody.appendChild(tr);
         });
     }
@@ -171,7 +177,6 @@
         const total = window.currentInvoiceData.lineItems.reduce((acc, item) => acc + item.totalGross, 0);
         document.getElementById('totalDisplay').innerText = total.toFixed(2);
 
-        // Обновляем итоги в модели
         window.currentInvoiceData.totals = {
             totalNet: total,
             totalVat: 0,
@@ -183,7 +188,7 @@
     document.getElementById('generatePdfBtn').addEventListener('click', () => {
         const data = window.currentInvoiceData;
 
-        // Подготовка тела таблицы для PDF
+        // Таблица для PDF (без иконок, только текст)
         const tableBody = [
             [
                 { text: 'Nazwa towaru / usługi', style: 'tableHeader' },
@@ -202,8 +207,6 @@
             ]);
         });
 
-        // Парсинг покупателя/продавца из TextArea (разбиваем по переносу строки)
-        // Это позволяет редактировать данные в textarea как угодно
         const parseAddressBox = (rawText) => {
             const lines = rawText.split('\n');
             const name = lines[0] || "";
@@ -219,10 +222,9 @@
                 { text: 'FAKTURA', style: 'header', alignment: 'right' },
                 { text: `Nr: ${data.invoiceHeader.invoiceNumber}`, alignment: 'right', bold: true },
 
-                // Дата (теперь одна)
+                // Одна дата (wystawienia) = распарсенная дата продажи
                 { text: `Data wystawienia: ${data.invoiceHeader.issueDate}`, alignment: 'right', margin: [0,0,0,20], fontSize: 10 },
 
-                // Колонки продавца/покупателя (берутся из textarea)
                 {
                     columns: [
                         { width: '*', text: [{text:'Sprzedawca:\n',style:'label'}, {text:sellerInfo.name+'\n',bold:true}, sellerInfo.rest] },
@@ -231,7 +233,6 @@
                 },
                 { text: '\n\n' },
 
-                // Таблица
                 {
                     table: {
                         headerRows: 1,
@@ -242,7 +243,6 @@
                 },
                 { text: '\n' },
 
-                // ИТОГИ
                 {
                     columns: [
                         { width: '*', text: '' },

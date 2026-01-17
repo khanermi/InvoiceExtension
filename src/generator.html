@@ -23,13 +23,27 @@
         .items-section { margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
         th { text-align: left; padding: 8px; background: #f0f0f0; border-bottom: 2px solid #ddd; }
-        td { padding: 5px; border-bottom: 1px solid #eee; }
+        td { padding: 5px; border-bottom: 1px solid #eee; vertical-align: middle; }
 
         /* Инпуты внутри таблицы */
         td input { width: 100%; padding: 5px; border: 1px solid transparent; background: transparent; }
         td input:focus { border-color: #aaa; background: white; }
         td input.qty { text-align: center; width: 40px; }
         td input.price { text-align: right; width: 80px; }
+
+        /* Стили иконки ссылки */
+        .link-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            color: #666;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .link-icon:hover { background-color: #eee; color: #000; }
+        .link-icon svg { width: 16px; height: 16px; }
 
         .total-row { text-align: right; font-weight: bold; font-size: 16px; margin-top: 10px; }
 
@@ -53,7 +67,7 @@
             <input type="text" id="invoiceNumber">
         </div>
         <div class="form-group">
-            <label>Data wystawienia / sprzedaży</label>
+            <label>Data wystawienia</label>
             <input type="date" id="issueDate">
         </div>
         <div class="form-group">
@@ -78,7 +92,7 @@
         <table id="itemsTable">
             <thead>
             <tr>
-                <th style="width: 55%">Nazwa towaru / usługi</th>
+                <th style="width: 30px;"></th> <th style="width: 50%">Nazwa towaru / usługi</th>
                 <th style="width: 15%; text-align: center;">Ilość</th>
                 <th style="width: 15%; text-align: right;">Cena jedn.</th>
                 <th style="width: 15%; text-align: right;">Wartość</th>

@@ -5,9 +5,15 @@ function scrapeLineItems() {
 
     itemContainers.forEach(container => {
         try {
-            const titleEl = container.querySelector('.item-title a') || container.querySelector('.item-title');
-            const description = titleEl ? titleEl.innerText.trim() : "Towar AliExpress";
+            // Ищем элемент названия. Если это ссылка <a>, берем href
+            const titleLink = container.querySelector('.item-title a');
+            const titleEl = titleLink || container.querySelector('.item-title');
 
+            const description = titleEl ? titleEl.innerText.trim() : "Towar AliExpress";
+            // Сохраняем ссылку на товар
+            const productUrl = titleLink ? titleLink.href : null;
+
+            // Цена
             const priceEl = container.querySelector('.es--wrap--1Hlfkoj') || container.querySelector('.item-price');
             let rawPrice = "0";
             if (priceEl) {
@@ -15,6 +21,7 @@ function scrapeLineItems() {
             }
             const grossUnitPrice = parseFloat(rawPrice) || 0;
 
+            // Количество
             const qtyEl = container.querySelector('.item-price-quantity');
             let quantity = 1;
             if (qtyEl) {
@@ -24,6 +31,7 @@ function scrapeLineItems() {
 
             items.push({
                 description: description,
+                productUrl: productUrl, // <-- Добавили поле
                 quantity: quantity,
                 grossUnitPrice: grossUnitPrice,
                 vatRate: 0,
@@ -38,13 +46,12 @@ function scrapeLineItems() {
     return items;
 }
 
-// НОВАЯ ФУНКЦИЯ: Парсинг даты заказа (с польского)
+// НОВАЯ ФУНКЦИЯ: Парсинг даты заказа
 function getSalesDateFromHTML() {
     try {
         const dateLabel = document.querySelector('[data-pl="order_detail_gray_date"]');
         if (!dateLabel) return null;
 
-        // Текст находится в родительском div, рядом со span
         const fullText = dateLabel.parentElement.textContent.trim();
 
         const monthsPL = {
@@ -52,7 +59,6 @@ function getSalesDateFromHTML() {
             'lip': '07', 'sie': '08', 'wrz': '09', 'paź': '10', 'lis': '11', 'gru': '12'
         };
 
-        // Ищем паттерн: день (1-2 цифры) + пробел + буквы + пробел + год (4 цифры)
         const match = fullText.match(/(\d{1,2})\s+([a-ząćęłńóśźż]+)\s+(\d{4})/i);
 
         if (match) {
@@ -91,14 +97,13 @@ function scrapeData() {
         console.error("Не удалось найти общую цену", e);
     }
 
-    // Используем найденную дату или текущую как запасной вариант
     const parsedDate = getSalesDateFromHTML();
 
     return {
         orderId: orderId,
-        saleDate: parsedDate || new Date().toISOString().slice(0, 10), // Вставляем дату продажи сюда
+        saleDate: parsedDate || new Date().toISOString().slice(0, 10),
         sellerName: "AliExpress Seller",
-        lineItems: scrapeLineItems(),
+        lineItems: scrapeLineItems(), // Теперь товары содержат URL
         parsedTotalStr: totalOrderPrice,
         url: window.location.href
     };
