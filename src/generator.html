@@ -1,10 +1,49 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Generuj Fakturę</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="libs/pdfmake.js"></script>
+    <script src="fonts/vfs_fonts.js"></script>
+    <script src="generator.js"></script>
 </head>
 <body>
+<div class="container">
+    <h1>Dane do Faktury</h1>
 
+    <div class="row">
+        <div class="col">
+            <label>Sprzedawca (Twoja firma):</label>
+            <textarea id="seller" rows="4" placeholder="Заполните в настройках расширения"></textarea>
+        </div>
+        <div class="col">
+            <label>Nabywca:</label>
+            <textarea id="buyer" rows="4">Klient Detaliczny</textarea>
+        </div>
+    </div>
+
+    <hr>
+
+    <label>Nazwa towaru / usługi:</label>
+    <input type="text" id="itemName">
+
+    <div class="row">
+        <div class="col">
+            <label>Cena:</label>
+            <input type="text" id="price">
+        </div>
+        <div class="col">
+            <label>Data:</label>
+            <input type="text" id="date">
+        </div>
+    </div>
+
+    <div class="footer-info">
+        Link źródłowy: <input type="text" id="sourceUrl" readonly>
+    </div>
+
+    <button id="generatePdfBtn" class="big-green-btn">Pobierz PDF (Скачать)</button>
+</div>
 </body>
 </html>

@@ -1,10 +1,35 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Ustawienia Nabywcy (Twoja Firma)</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<div class="container">
+    <h2>Dane Nabywcy (Buyer / Twoja Firma)</h2>
+    <p>Wprowadź dane swojej firmy. Zostaną one automatycznie wstawione do sekcji "Invoice to".</p>
 
+    <div class="form-group">
+        <label for="buyerName">Nazwa firmy (Buyer Name):</label>
+        <input type="text" id="buyerName" placeholder="np. Moja Firma Sp. z o.o.">
+    </div>
+
+    <div class="form-group">
+        <label for="buyerTaxId">NIP / VAT ID (Buyer Tax ID):</label>
+        <input type="text" id="buyerTaxId" placeholder="np. PL5250001234">
+    </div>
+
+    <div class="form-group">
+        <label for="buyerAddress">Pełny adres (Buyer Address Full):</label>
+        <textarea id="buyerAddress" rows="4" placeholder="np. ul. Prosta 10&#10;00-001 Warszawa&#10;Polska"></textarea>
+    </div>
+
+    <hr>
+    <button id="saveBtn" class="big-green-btn">Zapisz ustawienia</button>
+    <p id="status" style="color: green; margin-top: 10px; font-weight: bold;"></p>
+</div>
+
+<script src="options.js"></script>
 </body>
 </html>

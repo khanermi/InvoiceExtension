@@ -1,2 +1,29 @@
 ﻿{
+  "manifest_version": 3,
+  "name": "Invoice Generator PL",
+  "version": "1.0",
+  "description": "Парсит страницу и генерирует PDF инвойс",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.aliexpress.com/p/order/detail*",
+        "*://aliexpress.com/p/order/detail*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "host_permissions": ["<all_urls>"]
 }
