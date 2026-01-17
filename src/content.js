@@ -1,92 +1,125 @@
-﻿// 1. ФУНКЦИЯ ПАРСИНГА (Адаптирована под AliExpress)
+﻿// 1. ПАРСИНГ ТОВАРОВ (Список)
+function scrapeLineItems() {
+    const items = [];
+    // Ищем контейнеры товаров
+    const itemContainers = document.querySelectorAll('.order-detail-item-content');
+
+    itemContainers.forEach(container => {
+        try {
+            // Название
+            const titleEl = container.querySelector('.item-title a') || container.querySelector('.item-title');
+            const description = titleEl ? titleEl.innerText.trim() : "Towar AliExpress";
+
+            // Цена за штуку
+            const priceEl = container.querySelector('.es--wrap--1Hlfkoj') || container.querySelector('.item-price');
+            let rawPrice = "0";
+            if (priceEl) {
+                // Чистим цену: оставляем только цифры, точки и запятые
+                rawPrice = priceEl.innerText.replace(/[^\d.,]/g, '').replace(',', '.');
+            }
+            const grossUnitPrice = parseFloat(rawPrice) || 0;
+
+            // Количество
+            const qtyEl = container.querySelector('.item-price-quantity');
+            let quantity = 1;
+            if (qtyEl) {
+                const qtyText = qtyEl.innerText.toLowerCase().replace('x', '').trim();
+                quantity = parseInt(qtyText) || 1;
+            }
+
+            items.push({
+                description: description,
+                quantity: quantity,
+                grossUnitPrice: grossUnitPrice,
+                vatRate: 0,
+                totalGrossPrice: grossUnitPrice * quantity
+            });
+
+        } catch (e) {
+            console.error("Ошибка парсинга товара:", e);
+        }
+    });
+
+    return items;
+}
+
+// 2. ГЛАВНАЯ ФУНКЦИЯ СБОРА ДАННЫХ
 function scrapeData() {
-    // Получаем ID заказа из URL (это самое надежное место на этой странице)
     const urlParams = new URLSearchParams(window.location.search);
-    const orderId = urlParams.get('orderId') || "Nieznany";
+    const orderId = urlParams.get('orderId') || "---";
 
-    // Пытаемся найти сумму (селекторы могут меняться, поэтому делаем try-catch)
-    let priceText = "0.00";
+    // --- ПАРСИНГ ИТОГОВОЙ СУММЫ (SUMA) ---
+    let totalOrderPrice = "0";
     try {
-        // Ищем элементы, похожие на цену (стандартные классы AE)
-        const priceEl = document.querySelector('.order-price-bold') ||
-            document.querySelector('.money-bold');
-        if (priceEl) priceText = priceEl.innerText;
-    } catch (e) {}
+        // Приоритет 1: Ищем по вашему классу 'rightPriceClass'
+        // Обычно финальная цена идет последней в списке (после Subtotal и Shipping)
+        const targetPriceEls = document.querySelectorAll('.rightPriceClass');
 
-    // Название (обычно берем из заголовка или статуса, т.к. товаров может быть много)
-    const title = `Zamówienie AliExpress #${orderId}`;
+        if (targetPriceEls.length > 0) {
+            // Берем последний элемент, так как это обычно "Total"
+            totalOrderPrice = targetPriceEls[targetPriceEls.length - 1].innerText;
+        } else {
+            // Запасной вариант (старые классы)
+            const fallbackEls = document.querySelectorAll('.order-price-bold');
+            if (fallbackEls.length > 0) {
+                totalOrderPrice = fallbackEls[fallbackEls.length - 1].innerText;
+            }
+        }
+    } catch (e) {
+        console.error("Не удалось найти общую цену", e);
+    }
 
     return {
-        title: title,
-        url: window.location.href,
-        price: priceText,
-        date: new Date().toLocaleDateString('pl-PL'),
-        orderId: orderId, // Дополнительное поле, полезно для PDF
-        seller: "AliExpress Seller",
-        buyer: "Ty"
+        orderId: orderId,
+        saleDate: new Date().toISOString().slice(0, 10),
+        sellerName: "AliExpress Seller",
+
+        // Список товаров
+        lineItems: scrapeLineItems(),
+        // Итоговая строка (например "30,15 zł") для расчетов в генераторе
+        parsedTotalStr: totalOrderPrice,
+
+        url: window.location.href
     };
 }
 
-// 2. ФУНКЦИЯ СОЗДАНИЯ И ВНЕДРЕНИЯ КНОПКИ
+// 3. ВНЕДРЕНИЕ КНОПКИ
 function injectButton() {
-    // Ищем целевой контейнер по классам из вашего примера
+    // Ищем блок статуса заказа
     const targetContainer = document.querySelector('.order-status.order-block');
+    // Проверка, чтобы не дублировать кнопку
+    if (!targetContainer || document.getElementById('my-faktura-btn')) return;
 
-    // Если контейнера нет ИЛИ кнопка уже добавлена — выходим
-    if (!targetContainer || document.getElementById('my-faktura-btn')) {
-        return;
-    }
-
-    // Создаем кнопку
     const btn = document.createElement("button");
-    btn.id = "my-faktura-btn"; // Уникальный ID, чтобы не дублировать
+    btn.id = "my-faktura-btn";
     btn.type = "button";
-
-    // Используем родной класс 'comet-btn', чтобы кнопка была по размеру как остальные
     btn.className = "comet-btn";
-
-    // Добавляем немного своих стилей, чтобы она выделялась (зеленая)
     btn.style.cssText = "margin-left: 10px; background-color: #2e7d32; color: white; border-color: #2e7d32;";
 
-    // Внутренняя структура кнопки (span) как на сайте
     const span = document.createElement("span");
     span.innerText = "Faktura (PDF)";
     btn.appendChild(span);
 
-    // Логика клика
     btn.onclick = () => {
         const originalText = span.innerText;
-        span.innerText = "...";
+        span.innerText = "Pobieranie...";
         btn.disabled = true;
 
         const data = scrapeData();
 
-        // Отправляем сообщение background скрипту
         chrome.runtime.sendMessage({ action: "openGenerator", data: data }, () => {
-            // Возвращаем кнопку в исходное состояние
             span.innerText = originalText;
             btn.disabled = false;
         });
     };
 
-    // Вставляем кнопку в конец контейнера (после кнопки "Paragon")
     targetContainer.appendChild(btn);
-    console.log("Кнопка Faktura успешно добавлена!");
 }
 
-// 3. НАБЛЮДАТЕЛЬ (MutationObserver)
-// AliExpress подгружает контент динамически (React). 
-// Нам нужно следить за изменениями страницы, чтобы вставить кнопку, когда появится блок.
+// Наблюдатель за изменениями DOM (так как React отрисовывает страницу динамически)
 const observer = new MutationObserver((mutations) => {
-    // При каждом изменении DOM проверяем, не появился ли наш блок
     injectButton();
 });
 
-// Запускаем наблюдение за всем телом страницы
-observer.observe(document.body, {
-    childList: true,
-    subtree: true
-});
-
-// На случай, если элемент уже есть (при перезагрузке расширения)
+observer.observe(document.body, { childList: true, subtree: true });
 injectButton();
