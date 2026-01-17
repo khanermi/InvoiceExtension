@@ -66,7 +66,6 @@
     function initUI() {
         const data = window.currentInvoiceData;
 
-        // --- ИНИЦИАЛИЗАЦИЯ ИНПУТОВ ---
         bindInput('invoiceNumber', data.invoiceHeader.invoiceNumber, (val) => data.invoiceHeader.invoiceNumber = val);
         bindInput('issueDate', data.invoiceHeader.issueDate, (val) => data.invoiceHeader.issueDate = val);
         bindInput('saleDate', data.invoiceHeader.saleDate, (val) => data.invoiceHeader.saleDate = val);
@@ -85,7 +84,6 @@
             updateSellerRawText();
         });
 
-        // Ссылка на магазин (теперь внутри попапа)
         const storeBtn = document.getElementById('sellerStoreLink');
         if (data.seller.storeUrl) {
             storeBtn.href = data.seller.storeUrl;
@@ -111,7 +109,6 @@
         renderItemsTable();
         updateTotalDisplay();
 
-        // --- ИНИЦИАЛИЗАЦИЯ AI MODAL ---
         setupAiModal();
     }
 
@@ -124,25 +121,20 @@
         const applyBtn = document.getElementById('applyAiDataBtn');
         const jsonInput = document.getElementById('aiJsonInput');
 
-        // Открытие
         openBtn.onclick = () => {
             modal.style.display = "block";
             jsonInput.value = "";
         };
 
-        // Закрытие
         closeBtn.onclick = () => modal.style.display = "none";
         window.onclick = (event) => {
             if (event.target == modal) modal.style.display = "none";
         };
 
-        // Копирование промпта (с красивой анимацией иконки)
         copyBtn.onclick = () => {
             const promptText = document.getElementById('aiPromptText').innerText;
             navigator.clipboard.writeText(promptText).then(() => {
-                // Сохраняем оригинальную иконку
                 const originalHtml = copyBtn.innerHTML;
-                // Меняем на галочку
                 copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 copyBtn.style.borderColor = "#2e7d32";
 
@@ -173,8 +165,9 @@
                 document.getElementById('sellerAddress').value = data.seller.addressFull;
 
                 updateSellerRawText();
+
+                // Закрываем окно БЕЗ алерта
                 modal.style.display = "none";
-                alert("Dane sprzedawcy zostały zaktualizowane!");
 
             } catch (e) {
                 console.error(e);
