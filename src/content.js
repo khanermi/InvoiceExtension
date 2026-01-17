@@ -1,16 +1,20 @@
-﻿// 1. ПАРСИНГ ТОВАРОВ (Список)
+﻿console.log("AliExpress Invoice Extension: Script loaded");
+
+// 1. ПАРСИНГ ТОВАРОВ (Список)
 function scrapeLineItems() {
     const items = [];
     const itemContainers = document.querySelectorAll('.order-detail-item-content');
 
     itemContainers.forEach(container => {
         try {
+            // Название и ссылка
             const titleLink = container.querySelector('.item-title a');
             const titleEl = titleLink || container.querySelector('.item-title');
 
             const description = titleEl ? titleEl.innerText.trim() : "Towar AliExpress";
             const productUrl = titleLink ? titleLink.href : null;
 
+            // Цена
             const priceEl = container.querySelector('.es--wrap--1Hlfkoj') || container.querySelector('.item-price');
             let rawPrice = "0";
             if (priceEl) {
@@ -18,6 +22,7 @@ function scrapeLineItems() {
             }
             const grossUnitPrice = parseFloat(rawPrice) || 0;
 
+            // Количество
             const qtyEl = container.querySelector('.item-price-quantity');
             let quantity = 1;
             if (qtyEl) {
@@ -42,7 +47,7 @@ function scrapeLineItems() {
     return items;
 }
 
-// ПАРСИНГ ДАТЫ
+// 2. ПАРСИНГ ДАТЫ (Польской)
 function getSalesDateFromHTML() {
     try {
         const dateLabel = document.querySelector('[data-pl="order_detail_gray_date"]');
@@ -62,64 +67,40 @@ function getSalesDateFromHTML() {
             const month = monthsPL[monthStr];
             if (day && month && year) return `${year}-${month}-${day}`;
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Ошибка даты:", e); }
     return null;
 }
 
-// НОВАЯ ФУНКЦИЯ: Асинхронное получение НДС с эмуляцией наведения
-async function getVatAmountAsync() {
-    // 1. Сначала попробуем найти, вдруг уже открыто
-    let vatVal = parseVatFromDom();
-    if (vatVal > 0) return vatVal;
+// 3. ПАРСИНГ ПРОДАВЦА (Имя и Ссылка)
+function getSellerInfo() {
+    const storeEl = document.querySelector('.order-detail-item-store');
+    let name = "AliExpress Seller";
+    let url = "";
 
-    // 2. Ищем иконку вопроса рядом с "Wliczono podatek VAT"
-    // Обычно она идет сразу после текста, либо внутри того же блока
-    // Попробуем найти span с текстом "Wliczono podatek VAT"
-    const allSpans = Array.from(document.querySelectorAll('span'));
-    const vatLabel = allSpans.find(s => s.textContent && s.textContent.includes('Wliczono podatek VAT'));
+    if (storeEl) {
+        // Имя продавца
+        const nameEl = storeEl.querySelector('.store-name');
+        if (nameEl) name = nameEl.innerText.trim();
 
-    if (vatLabel) {
-        // Иконка обычно следующий элемент или внутри родителя
-        let icon = vatLabel.querySelector('.comet-icon-help');
-        if (!icon) icon = vatLabel.nextElementSibling?.querySelector('.comet-icon-help') || vatLabel.nextElementSibling;
-
-        // Если нашли иконку — "наводим" мышь
-        if (icon) {
-            console.log("Эмулируем наведение на иконку VAT...");
-
-            // События мыши для триггера React/Tooltip
-            const mouseOverEvent = new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window });
-            const mouseEnterEvent = new MouseEvent('mouseenter', { bubbles: true, cancelable: true, view: window });
-
-            icon.dispatchEvent(mouseOverEvent);
-            icon.dispatchEvent(mouseEnterEvent);
-
-            // Ждем 500 мс пока отрисуется попап
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Пробуем парсить снова
-            vatVal = parseVatFromDom();
-
-            // (Опционально) Убираем мышь, чтобы попап не висел, хотя это не критично
-            const mouseOut = new MouseEvent('mouseout', { bubbles: true });
-            icon.dispatchEvent(mouseOut);
+        // Ссылка на магазин
+        const linkEl = storeEl.querySelector('a');
+        if (linkEl) {
+            url = linkEl.getAttribute('href');
+            if (url && url.startsWith('//')) {
+                url = 'https:' + url;
+            }
         }
     }
-
-    return vatVal || 0;
+    return { name, url };
 }
 
-// Хелпер: ищет текст в DOM
+// 4. ПАРСИНГ НДС (Асинхронный с наведением мыши)
 function parseVatFromDom() {
     try {
-        // Ищем во всех попапах
         const hintContents = document.querySelectorAll('.popover-hint-content, .comet-popover-content');
         for (let container of hintContents) {
-            // Ищем строку "Podatek VAT: X,XX"
             const text = container.textContent || "";
             if (text.includes("Podatek VAT")) {
-                // Извлекаем цену. Пример: "Podatek VAT: 5,63zł"
-                // Регулярка ищет число после двоеточия
                 const match = text.match(/Podatek VAT:\s*([\d,.\s]+)/);
                 if (match) {
                     const cleanPrice = match[1].replace(/[^\d.,]/g, '').replace(',', '.');
@@ -131,7 +112,42 @@ function parseVatFromDom() {
     return 0;
 }
 
-// 2. ГЛАВНАЯ ФУНКЦИЯ (Теперь ASYNC)
+async function getVatAmountAsync() {
+    // 1. Проверяем, может уже открыто
+    let vatVal = parseVatFromDom();
+    if (vatVal > 0) return vatVal;
+
+    // 2. Ищем иконку вопроса
+    const allSpans = Array.from(document.querySelectorAll('span'));
+    const vatLabel = allSpans.find(s => s.textContent && s.textContent.includes('Wliczono podatek VAT'));
+
+    if (vatLabel) {
+        let icon = vatLabel.querySelector('.comet-icon-help');
+        if (!icon) icon = vatLabel.nextElementSibling?.querySelector('.comet-icon-help') || vatLabel.nextElementSibling;
+
+        if (icon) {
+            // Эмулируем наведение
+            const mouseOverEvent = new MouseEvent('mouseover', { bubbles: true, cancelable: true, view: window });
+            const mouseEnterEvent = new MouseEvent('mouseenter', { bubbles: true, cancelable: true, view: window });
+
+            icon.dispatchEvent(mouseOverEvent);
+            icon.dispatchEvent(mouseEnterEvent);
+
+            // Ждем 500 мс появления попапа
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // Парсим снова
+            vatVal = parseVatFromDom();
+
+            // Убираем мышь (опционально)
+            const mouseOut = new MouseEvent('mouseout', { bubbles: true });
+            icon.dispatchEvent(mouseOut);
+        }
+    }
+    return vatVal || 0;
+}
+
+// 5. ГЛАВНАЯ ФУНКЦИЯ СБОРА (ASYNC)
 async function scrapeData() {
     const urlParams = new URLSearchParams(window.location.search);
     const orderId = urlParams.get('orderId') || "---";
@@ -150,14 +166,16 @@ async function scrapeData() {
     } catch (e) { console.error(e); }
 
     const parsedDate = getSalesDateFromHTML();
-
-    // ЖДЕМ получение НДС
-    const parsedVat = await getVatAmountAsync();
+    const sellerInfo = getSellerInfo();
+    const parsedVat = await getVatAmountAsync(); // Ждем НДС
 
     return {
         orderId: orderId,
         saleDate: parsedDate || new Date().toISOString().slice(0, 10),
-        sellerName: "AliExpress Seller",
+        seller: {
+            name: sellerInfo.name,
+            storeUrl: sellerInfo.url
+        },
         lineItems: scrapeLineItems(),
         parsedTotalStr: totalOrderPrice,
         totalVat: parsedVat,
@@ -165,9 +183,12 @@ async function scrapeData() {
     };
 }
 
-// 3. ВНЕДРЕНИЕ КНОПКИ
+// 6. ВНЕДРЕНИЕ КНОПКИ
 function injectButton() {
+    // Ищем блок статуса (место для кнопки)
     const targetContainer = document.querySelector('.order-status.order-block');
+
+    // Если контейнера нет или кнопка уже есть — выходим
     if (!targetContainer || document.getElementById('my-faktura-btn')) return;
 
     const btn = document.createElement("button");
@@ -180,14 +201,13 @@ function injectButton() {
     span.innerText = "Faktura (PDF)";
     btn.appendChild(span);
 
-    // ОБРАБОТЧИК теперь ASYNC
+    // Обработчик клика
     btn.onclick = async () => {
         const originalText = span.innerText;
-        span.innerText = "Pobieranie..."; // Индикатор работы, пока ждем 0.5 сек
+        span.innerText = "Pobieranie..."; // Индикатор загрузки
         btn.disabled = true;
 
         try {
-            // Ждем завершения скрапинга (включая ожидание попапа)
             const data = await scrapeData();
 
             chrome.runtime.sendMessage({ action: "openGenerator", data: data }, () => {
@@ -195,17 +215,25 @@ function injectButton() {
                 btn.disabled = false;
             });
         } catch (e) {
-            console.error("Ошибка сбора данных:", e);
+            console.error("Ошибка при сборе данных:", e);
             span.innerText = "Błąd!";
-            setTimeout(() => { span.innerText = originalText; btn.disabled = false; }, 2000);
+            setTimeout(() => {
+                span.innerText = originalText;
+                btn.disabled = false;
+            }, 2000);
         }
     };
 
     targetContainer.appendChild(btn);
 }
 
+// 7. НАБЛЮДАТЕЛЬ (Observer)
+// Следит за изменениями на странице, чтобы вернуть кнопку, если React её удалит
 const observer = new MutationObserver((mutations) => {
     injectButton();
 });
+
 observer.observe(document.body, { childList: true, subtree: true });
+
+// Первичный запуск
 injectButton();

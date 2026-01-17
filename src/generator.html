@@ -14,8 +14,26 @@
         .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 5px; }
         .form-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
 
+        /* Обновленная сетка сторон */
         .parties-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-        textarea { width: 100%; height: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; font-family: inherit; box-sizing: border-box;}
+
+        /* Стили для блока продавца (левая колонка) */
+        .seller-box { display: flex; flex-direction: column; gap: 10px; }
+        .seller-box input, .seller-box textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .seller-box textarea { height: 80px; resize: vertical; }
+
+        /* Кнопка ссылки на магазин */
+        .store-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 6px 12px; background-color: #ff9100; color: white;
+            text-decoration: none; font-size: 12px; border-radius: 4px;
+            align-self: flex-start; margin-top: 5px;
+        }
+        .store-btn:hover { background-color: #e65100; }
+        .store-btn svg { width: 14px; height: 14px; margin-left: 5px; }
+
+        /* Покупатель (правая колонка) остается textarea */
+        textarea.buyer-area { width: 100%; height: 100%; min-height: 150px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; font-family: inherit; box-sizing: border-box;}
 
         .items-section { margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -31,33 +49,11 @@
         .link-icon:hover { background-color: #eee; color: #000; }
         .link-icon svg { width: 16px; height: 16px; }
 
-        /* ИТОГИ */
-        .totals-section {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 20px;
-        }
-        .totals-table {
-            width: 300px;
-            font-size: 14px;
-        }
-        .totals-table td {
-            padding: 5px;
-            text-align: right;
-            border-bottom: 1px solid #eee;
-        }
-        .totals-table input {
-            text-align: right;
-            width: 100px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            padding: 4px;
-            background: #fff;
-        }
-        .total-final {
-            font-weight: bold;
-            font-size: 16px;
-        }
+        .totals-section { display: flex; justify-content: flex-end; margin-top: 20px; }
+        .totals-table { width: 300px; font-size: 14px; }
+        .totals-table td { padding: 5px; text-align: right; border-bottom: 1px solid #eee; }
+        .totals-table input { text-align: right; width: 100px; border: 1px solid #ddd; border-radius: 4px; padding: 4px; background: #fff; }
+        .total-final { font-weight: bold; font-size: 16px; }
 
         .actions { margin-top: 20px; text-align: right; border-top: 1px solid #eee; padding-top: 20px; }
         button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
@@ -94,11 +90,21 @@
     <div class="parties-grid">
         <div class="form-group">
             <label>Sprzedawca (Seller)</label>
-            <textarea id="sellerData"></textarea>
+            <div class="seller-box">
+                <input type="text" id="sellerName" placeholder="Nazwa sklepu (Sold by)">
+                <input type="text" id="sellerTaxId" placeholder="VAT ID / NIP (np. CZ123...)">
+                <textarea id="sellerAddress" placeholder="Pełny adres (ulica, miasto, kraj)"></textarea>
+
+                <a href="#" id="sellerStoreLink" target="_blank" class="store-btn">
+                    Otwórz sklep
+                    <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M318 1024l-64-64 448-448-448-448 64-64 512 512z"/></svg>
+                </a>
+            </div>
         </div>
+
         <div class="form-group">
             <label>Nabywca (Buyer)</label>
-            <textarea id="buyerData"></textarea>
+            <textarea id="buyerData" class="buyer-area"></textarea>
         </div>
     </div>
 

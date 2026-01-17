@@ -4,19 +4,15 @@
         const buyerConfig = result.invoice_buyer_config || { name: "", taxId: "", addressFull: "" };
         const parsedData = result.tempInvoiceData || { lineItems: [], parsedTotalStr: "0" };
 
-        // 1. Инициализация товаров
         let calculatedItems = (parsedData.lineItems || []).map(item => ({
             ...item,
             productUrl: item.productUrl || null,
             totalGross: item.grossUnitPrice * item.quantity
         }));
 
-        // Считаем сумму товаров
         const itemsSum = calculatedItems.reduce((acc, item) => acc + item.totalGross, 0);
-        // Общая сумма заказа (с доставкой)
         const totalOrderPrice = parseFloat((parsedData.parsedTotalStr || "0").replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
 
-        // Добавляем Доставку/Скидку
         const difference = totalOrderPrice - itemsSum;
         if (Math.abs(difference) > 0.01) {
             const desc = difference > 0 ? "Koszt dostawy (Shipping)" : "Rabat / Kupon (Discount)";
@@ -31,7 +27,17 @@
 
         const initialDate = parsedData.saleDate || new Date().toISOString().slice(0, 10);
 
-        // 2. Объект модели
+        // Формируем начальные данные продавца
+        // Если пришло объект seller из скрапера, берем его.
+        const sellerName = parsedData.seller?.name || "AliExpress Seller";
+        const sellerUrl = parsedData.seller?.storeUrl || "";
+        // Адрес и налог пока пустые, пользователь заполнит сам
+        const sellerAddress = "";
+        const sellerTaxId = "";
+
+        // Склеиваем для старой логики PDF
+        const initialSellerRaw = `${sellerName}\nVAT ID: ${sellerTaxId}\n${sellerAddress}`;
+
         const invoiceData = {
             invoiceHeader: {
                 invoiceNumber: parsedData.orderId ? `FV-${parsedData.orderId}` : `FV-${Date.now()}`,
@@ -39,17 +45,19 @@
                 issueDate: initialDate,
                 saleDate: initialDate
             },
+            // НОВАЯ СТРУКТУРА СЕЛЛЕРА
             seller: {
-                name: parsedData.sellerName || "AliExpress Seller",
-                addressFull: "AliExpress Platform",
-                rawText: `${parsedData.sellerName || "AliExpress Seller"}\nAliExpress Platform`
+                name: sellerName,
+                taxId: sellerTaxId,
+                addressFull: sellerAddress,
+                storeUrl: sellerUrl,
+                rawText: initialSellerRaw // Для обратной совместимости с PDF
             },
             buyer: {
                 ...buyerConfig,
                 rawText: `${buyerConfig.name}\nNIP: ${buyerConfig.taxId}\n${buyerConfig.addressFull}`
             },
             lineItems: calculatedItems,
-            // Изначальный VAT из парсинга
             totalVatAmount: parsedData.totalVat || 0,
             sourceUrl: parsedData.url
         };
@@ -63,12 +71,36 @@
     function initUI() {
         const data = window.currentInvoiceData;
 
+        // Шапка
         bindInput('invoiceNumber', data.invoiceHeader.invoiceNumber, (val) => data.invoiceHeader.invoiceNumber = val);
         bindInput('issueDate', data.invoiceHeader.issueDate, (val) => data.invoiceHeader.issueDate = val);
         bindInput('saleDate', data.invoiceHeader.saleDate, (val) => data.invoiceHeader.saleDate = val);
         bindInput('orderId', data.invoiceHeader.orderId, (val) => data.invoiceHeader.orderId = val);
 
-        bindInput('sellerData', data.seller.rawText, (val) => data.seller.rawText = val);
+        // --- ПРОДАВЕЦ (Новые поля) ---
+        bindInput('sellerName', data.seller.name, (val) => {
+            data.seller.name = val;
+            updateSellerRawText();
+        });
+        bindInput('sellerTaxId', data.seller.taxId, (val) => {
+            data.seller.taxId = val;
+            updateSellerRawText();
+        });
+        bindInput('sellerAddress', data.seller.addressFull, (val) => {
+            data.seller.addressFull = val;
+            updateSellerRawText();
+        });
+
+        // Кнопка ссылки
+        const storeBtn = document.getElementById('sellerStoreLink');
+        if (data.seller.storeUrl) {
+            storeBtn.href = data.seller.storeUrl;
+            storeBtn.style.display = 'inline-flex'; // Показываем кнопку
+        } else {
+            storeBtn.style.display = 'none'; // Скрываем, если ссылки нет
+        }
+
+        // --- ПОКУПАТЕЛЬ ---
         bindInput('buyerData', data.buyer.rawText, (val) => data.buyer.rawText = val);
 
         document.getElementById('sourceUrl').value = data.sourceUrl;
@@ -76,7 +108,6 @@
         linkEl.href = data.sourceUrl;
         linkEl.innerText = `Źródło zamówienia: ${data.sourceUrl.substring(0, 40)}...`;
 
-        // Инициализация поля VAT
         const inputVat = document.getElementById('inputVat');
         inputVat.value = data.totalVatAmount.toFixed(2);
         inputVat.addEventListener('input', (e) => {
@@ -86,6 +117,14 @@
 
         renderItemsTable();
         updateTotalDisplay();
+    }
+
+    // Хелпер для обновления "сырого" текста, чтобы PDF работал по-старому
+    function updateSellerRawText() {
+        const s = window.currentInvoiceData.seller;
+        const taxLine = s.taxId ? `VAT ID: ${s.taxId}` : "";
+        // Склеиваем: Имя + Налог + Адрес
+        s.rawText = [s.name, taxLine, s.addressFull].filter(Boolean).join('\n');
     }
 
     function bindInput(id, initialValue, updateCallback) {
@@ -151,13 +190,13 @@
             tdPrice.appendChild(inputPrice);
             tr.appendChild(tdPrice);
 
-            // Итог Brutto (readonly)
+            // Итог Brutto
             const tdTotal = document.createElement('td');
             const inputTotal = document.createElement('input');
             inputTotal.className = "price";
             inputTotal.disabled = true;
             inputTotal.value = item.totalGross.toFixed(2);
-            item._domTotal = inputTotal; // Сохраним ссылку, чтобы быстро обновлять
+            item._domTotal = inputTotal;
             tdTotal.appendChild(inputTotal);
             tr.appendChild(tdTotal);
 
@@ -172,32 +211,25 @@
     }
 
     function updateTotalDisplay() {
-        // 1. Считаем Brutto всех позиций
         const totalGross = window.currentInvoiceData.lineItems.reduce((acc, item) => acc + item.totalGross, 0);
-
-        // 2. Берем VAT из модели (которая обновляется инпутом)
         const vatAmount = window.currentInvoiceData.totalVatAmount;
-
-        // 3. Вычисляем Netto
         const totalNet = totalGross - vatAmount;
 
-        // Обновляем модель
         window.currentInvoiceData.totals = {
             totalNet: totalNet,
             totalVat: vatAmount,
             totalGross: totalGross
         };
 
-        // Обновляем UI
         document.getElementById('displayGross').innerText = totalGross.toFixed(2);
         document.getElementById('displayNet').innerText = totalNet.toFixed(2);
     }
 
-    // --- ГЕНЕРАЦИЯ PDF ---
+    // --- PDF ---
+    // (Код генерации PDF пока не трогаем, он использует rawText, который мы обновляем в updateSellerRawText)
     document.getElementById('generatePdfBtn').addEventListener('click', () => {
         const data = window.currentInvoiceData;
 
-        // Таблица позиций
         const tableBody = [
             [
                 { text: 'Nazwa towaru / usługi', style: 'tableHeader' },
@@ -216,8 +248,9 @@
             ]);
         });
 
+        // Парсинг покупателя/продавца из rawText (старый метод)
         const parseAddressBox = (rawText) => {
-            const lines = rawText.split('\n');
+            const lines = (rawText || "").split('\n');
             const name = lines[0] || "";
             const rest = lines.slice(1).join('\n');
             return { name, rest };
@@ -240,7 +273,6 @@
                 },
                 { text: '\n\n' },
 
-                // Таблица позиций
                 {
                     table: {
                         headerRows: 1,
@@ -251,7 +283,6 @@
                 },
                 { text: '\n' },
 
-                // Блок итогов (Таблица Netto | VAT | Gross)
                 {
                     columns: [
                         { width: '*', text: '' },
