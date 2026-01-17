@@ -85,7 +85,7 @@
             updateSellerRawText();
         });
 
-        // Кнопка ссылки
+        // Ссылка на магазин (теперь внутри попапа)
         const storeBtn = document.getElementById('sellerStoreLink');
         if (data.seller.storeUrl) {
             storeBtn.href = data.seller.storeUrl;
@@ -127,27 +127,29 @@
         // Открытие
         openBtn.onclick = () => {
             modal.style.display = "block";
-            jsonInput.value = ""; // Очищаем поле при открытии
+            jsonInput.value = "";
         };
 
-        // Закрытие (крестик)
-        closeBtn.onclick = () => {
-            modal.style.display = "none";
-        };
-
-        // Закрытие (клик вне окна)
+        // Закрытие
+        closeBtn.onclick = () => modal.style.display = "none";
         window.onclick = (event) => {
-            if (event.target == modal) {
-                modal.style.display = "none";
-            }
+            if (event.target == modal) modal.style.display = "none";
         };
 
-        // Копирование промпта
+        // Копирование промпта (с красивой анимацией иконки)
         copyBtn.onclick = () => {
             const promptText = document.getElementById('aiPromptText').innerText;
             navigator.clipboard.writeText(promptText).then(() => {
-                copyBtn.innerText = "Skopiowano!";
-                setTimeout(() => copyBtn.innerText = "Kopiuj", 2000);
+                // Сохраняем оригинальную иконку
+                const originalHtml = copyBtn.innerHTML;
+                // Меняем на галочку
+                copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#2e7d32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                copyBtn.style.borderColor = "#2e7d32";
+
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalHtml;
+                    copyBtn.style.borderColor = "";
+                }, 2000);
             });
         };
 
@@ -157,26 +159,20 @@
             if (!rawJson) return;
 
             try {
-                // Пытаемся почистить JSON (иногда Gemini добавляет ```json ... ```)
                 let cleanJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
                 const parsed = JSON.parse(cleanJson);
 
-                // Если все ок, обновляем данные модели
                 const data = window.currentInvoiceData;
 
                 if (parsed.name) data.seller.name = parsed.name;
                 if (parsed.taxId) data.seller.taxId = parsed.taxId;
                 if (parsed.address) data.seller.addressFull = parsed.address;
 
-                // Обновляем UI (Инпуты)
                 document.getElementById('sellerName').value = data.seller.name;
                 document.getElementById('sellerTaxId').value = data.seller.taxId;
                 document.getElementById('sellerAddress').value = data.seller.addressFull;
 
-                // Обновляем "сырой" текст для PDF
                 updateSellerRawText();
-
-                // Закрываем окно
                 modal.style.display = "none";
                 alert("Dane sprzedawcy zostały zaktualizowane!");
 

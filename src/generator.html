@@ -22,25 +22,16 @@
         .seller-box input, .seller-box textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
         .seller-box textarea { height: 80px; resize: vertical; }
 
-        /* КНОПКИ В БЛОКЕ ПРОДАВЦА */
+        /* Кнопка AI (Главная) */
         .seller-actions { display: flex; gap: 10px; margin-top: 5px; }
-
-        .store-btn {
-            display: inline-flex; align-items: center; justify-content: center;
-            padding: 6px 12px; background-color: #ff9100; color: white;
-            text-decoration: none; font-size: 12px; border-radius: 4px; flex: 1;
-        }
-        .store-btn:hover { background-color: #e65100; }
-        .store-btn svg { width: 14px; height: 14px; margin-left: 5px; }
-
-        /* Кнопка AI */
         .ai-btn {
             display: inline-flex; align-items: center; justify-content: center;
-            padding: 6px 12px; background-color: #4285F4; color: white; /* Google Blue */
-            border: none; cursor: pointer; font-size: 12px; border-radius: 4px; flex: 1;
+            padding: 8px 12px; background-color: #4285F4; color: white; /* Google Blue */
+            border: none; cursor: pointer; font-size: 13px; border-radius: 4px; width: 100%;
+            transition: background 0.2s;
         }
         .ai-btn:hover { background-color: #3367d6; }
-        .ai-btn svg { width: 14px; height: 14px; margin-right: 5px; }
+        .ai-btn svg { width: 16px; height: 16px; margin-right: 8px; }
 
         textarea.buyer-area { width: 100%; height: 100%; min-height: 180px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; font-family: inherit; box-sizing: border-box;}
 
@@ -75,41 +66,70 @@
 
         /* --- STYLES FOR AI MODAL --- */
         .modal {
-            display: none; /* Hidden by default */
-            position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
             overflow: auto; background-color: rgba(0,0,0,0.5);
         }
         .modal-content {
-            background-color: #fff; margin: 10% auto; padding: 25px; border-radius: 8px;
-            width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: relative;
+            background-color: #fff; margin: 5% auto; padding: 25px; border-radius: 8px;
+            width: 520px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); position: relative;
         }
         .close-modal {
             color: #aaa; float: right; font-size: 24px; font-weight: bold; cursor: pointer;
         }
         .close-modal:hover { color: #000; }
 
-        .ai-step { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
-        .ai-step:last-child { border-bottom: none; }
-        .ai-step h4 { margin: 0 0 10px 0; color: #4285F4; font-size: 14px; text-transform: uppercase; }
-        .ai-step p { font-size: 12px; color: #666; margin: 5px 0; }
+        .ai-step { margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .ai-step:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .ai-step h4 { margin: 0 0 8px 0; color: #4285F4; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ai-step p { font-size: 13px; color: #555; margin: 5px 0 10px 0; line-height: 1.4; }
 
-        .prompt-box {
-            background: #f4f4f4; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px;
-            color: #333; position: relative; word-break: break-all;
+        /* Промпт бокс с иконкой копирования */
+        .prompt-container {
+            position: relative;
+            background: #f4f4f4; border-radius: 4px; border: 1px solid #e0e0e0;
         }
-        .copy-btn {
-            position: absolute; right: 5px; top: 5px; background: #fff; border: 1px solid #ccc;
-            font-size: 10px; padding: 2px 5px; cursor: pointer; border-radius: 3px;
+        .prompt-text {
+            display: block; padding: 12px 40px 12px 12px;
+            font-family: 'Consolas', monospace; font-size: 11px; color: #333;
+            word-break: break-all;
         }
-        .copy-btn:active { background: #eee; }
+        .copy-icon-btn {
+            position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; cursor: pointer;
+            color: #757575; padding: 5px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .copy-icon-btn:hover { background-color: #e0e0e0; color: #333; }
+        .copy-icon-btn svg { width: 18px; height: 18px; }
+
+        /* Ссылка на магазин внутри модалки */
+        .store-btn-modal {
+            display: inline-flex; align-items: center; padding: 8px 16px;
+            background-color: #ff9100; color: white; text-decoration: none;
+            font-size: 13px; border-radius: 4px; margin-top: 5px; font-weight: 500;
+        }
+        .store-btn-modal:hover { background-color: #e65100; }
+        .store-btn-modal svg { width: 16px; height: 16px; margin-left: 6px; }
+
+        /* Ссылка на Gemini */
+        .gemini-link {
+            display: inline-flex; align-items: center; color: #4285F4;
+            font-weight: bold; text-decoration: none; font-size: 13px;
+        }
+        .gemini-link:hover { text-decoration: underline; }
 
         .json-input {
-            width: 100%; height: 100px; font-family: monospace; font-size: 12px;
-            padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-top: 5px;
+            width: 100%; height: 100px; font-family: 'Consolas', monospace; font-size: 12px;
+            padding: 10px; border: 1px solid #ccc; border-radius: 4px; margin-top: 5px;
+            background-color: #fafafa;
         }
+        .json-input:focus { border-color: #4285F4; background-color: #fff; outline: none; }
 
-        .modal-actions { text-align: right; margin-top: 10px; }
-        .btn-apply { background-color: #2e7d32; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; }
+        .modal-actions { text-align: right; margin-top: 15px; }
+        .btn-apply {
+            background-color: #2e7d32; color: white; padding: 10px 20px;
+            border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;
+        }
         .btn-apply:hover { background-color: #1b5e20; }
     </style>
 </head>
@@ -148,12 +168,8 @@
                 <div class="seller-actions">
                     <button id="openAiModalBtn" class="ai-btn" type="button">
                         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 10.5V8h-2.5v2.5H19zM19 13v2.5h-2.5V13H19zM13 10.5V8h-2.5v2.5H13zM13 13v2.5h-2.5V13H13zM7 13v2.5H4.5V13H7zM7 10.5V8H4.5v2.5H7zM21 5c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2V7c0-1.1.9-2 2-2h18zM3 17h18V7H3v10z"/></svg>
-                        Użyj Gemini (AI)
+                        Uzupełnij dane sprzedawcy (AI)
                     </button>
-                    <a href="#" id="sellerStoreLink" target="_blank" class="store-btn">
-                        Otwórz sklep
-                        <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M318 1024l-64-64 448-448-448-448 64-64 512 512z"/></svg>
-                    </a>
                 </div>
             </div>
         </div>
@@ -208,31 +224,40 @@
 <div id="aiModal" class="modal">
     <div class="modal-content">
         <span class="close-modal">&times;</span>
-        <h3 style="margin-top:0">Dane sprzedawcy ze zrzutu ekranu</h3>
+        <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Dane sprzedawcy ze zrzutu ekranu</h3>
 
         <div class="ai-step">
             <h4>1. Skopiuj ten Prompt</h4>
-            <div class="prompt-box">
-                <span id="aiPromptText">Extract seller data from this image. Return ONLY raw JSON (no markdown) with these keys: "name" (string), "taxId" (string, e.g. VAT/NIP), "address" (string, full address). If value is missing, use empty string.</span>
-                <button class="copy-btn" id="copyPromptBtn">Kopiuj</button>
+            <div class="prompt-container">
+                <span id="aiPromptText" class="prompt-text">Extract seller data from this image. Return ONLY raw JSON (no markdown) with these keys: "name" (string), "taxId" (string, e.g. VAT/NIP), "address" (string, full address). If value is missing, use empty string.</span>
+                <button class="copy-icon-btn" id="copyPromptBtn" title="Skopiuj do schowka">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
             </div>
         </div>
 
         <div class="ai-step">
-            <h4>2. Zapytaj Gemini</h4>
-            <p>Zrób zrzut ekranu (Win+Shift+S) danych sprzedawcy na AliExpress.</p>
-            <p>Kliknij poniższy link, wklej obrazek i skopiowany prompt.</p>
-            <a href="https://gemini.google.com/app" target="_blank" style="color:#4285F4; font-weight:bold; text-decoration:none;">
+            <h4>2. Otwórz sklep i zrób zrzut ekranu</h4>
+            <p>Kliknij poniżej, aby otworzyć profil sklepu. Następnie zrób wycinek (Win+Shift+S) z danymi firmy (zakładka "Business Information" lub stopka).</p>
+            <a href="#" id="sellerStoreLink" target="_blank" class="store-btn-modal">
+                Otwórz profil sklepu
+                <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M318 1024l-64-64 448-448-448-448 64-64 512 512z"/></svg>
+            </a>
+        </div>
+
+        <div class="ai-step">
+            <h4>3. Zapytaj Gemini</h4>
+            <p>Przejdź do Gemini, wklej obrazek (Ctrl+V) i prompt (Ctrl+V).</p>
+            <a href="https://gemini.google.com/app" target="_blank" class="gemini-link">
                 Otwórz Gemini (gemini.google.com) &rarr;
             </a>
         </div>
 
         <div class="ai-step">
-            <h4>3. Wklej wynik (JSON)</h4>
-            <p>Wklej odpowiedź z Gemini tutaj. Pola formularza zostaną uzupełnione.</p>
+            <h4>4. Wklej wynik (JSON)</h4>
             <textarea id="aiJsonInput" class="json-input" placeholder='{"name": "...", "taxId": "...", "address": "..."}'></textarea>
             <div class="modal-actions">
-                <button id="applyAiDataBtn" class="btn-apply">Wypełnij dane (Submit)</button>
+                <button id="applyAiDataBtn" class="btn-apply">Wypełnij formularz</button>
             </div>
         </div>
     </div>
