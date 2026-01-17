@@ -5,15 +5,12 @@ function scrapeLineItems() {
 
     itemContainers.forEach(container => {
         try {
-            // Ищем элемент названия. Если это ссылка <a>, берем href
             const titleLink = container.querySelector('.item-title a');
             const titleEl = titleLink || container.querySelector('.item-title');
 
             const description = titleEl ? titleEl.innerText.trim() : "Towar AliExpress";
-            // Сохраняем ссылку на товар
             const productUrl = titleLink ? titleLink.href : null;
 
-            // Цена
             const priceEl = container.querySelector('.es--wrap--1Hlfkoj') || container.querySelector('.item-price');
             let rawPrice = "0";
             if (priceEl) {
@@ -21,7 +18,6 @@ function scrapeLineItems() {
             }
             const grossUnitPrice = parseFloat(rawPrice) || 0;
 
-            // Количество
             const qtyEl = container.querySelector('.item-price-quantity');
             let quantity = 1;
             if (qtyEl) {
@@ -31,7 +27,7 @@ function scrapeLineItems() {
 
             items.push({
                 description: description,
-                productUrl: productUrl, // <-- Добавили поле
+                productUrl: productUrl,
                 quantity: quantity,
                 grossUnitPrice: grossUnitPrice,
                 vatRate: 0,
@@ -46,38 +42,53 @@ function scrapeLineItems() {
     return items;
 }
 
-// НОВАЯ ФУНКЦИЯ: Парсинг даты заказа
+// ПАРСИНГ ДАТЫ
 function getSalesDateFromHTML() {
     try {
         const dateLabel = document.querySelector('[data-pl="order_detail_gray_date"]');
         if (!dateLabel) return null;
 
         const fullText = dateLabel.parentElement.textContent.trim();
-
         const monthsPL = {
             'sty': '01', 'lut': '02', 'mar': '03', 'kwi': '04', 'maj': '05', 'cze': '06',
             'lip': '07', 'sie': '08', 'wrz': '09', 'paź': '10', 'lis': '11', 'gru': '12'
         };
 
         const match = fullText.match(/(\d{1,2})\s+([a-ząćęłńóśźż]+)\s+(\d{4})/i);
-
         if (match) {
             const day = match[1].padStart(2, '0');
             const monthStr = match[2].toLowerCase();
             const year = match[3];
             const month = monthsPL[monthStr];
-
-            if (day && month && year) {
-                return `${year}-${month}-${day}`;
-            }
+            if (day && month && year) return `${year}-${month}-${day}`;
         }
-    } catch (e) {
-        console.error("Ошибка парсинга даты:", e);
-    }
+    } catch (e) { console.error(e); }
     return null;
 }
 
-// 2. ГЛАВНАЯ ФУНКЦИЯ СБОРА ДАННЫХ
+// НОВАЯ ФУНКЦИЯ: Парсинг НДС
+function getVatAmount() {
+    try {
+        // Ищем все элементы, которые могут содержать текст "Podatek VAT"
+        // Используем textContent, так как элемент может быть скрыт (display: none)
+        // Класс .title внутри .popover-hint-content
+        const titleEls = document.querySelectorAll('.popover-hint-content .title');
+
+        for (let el of titleEls) {
+            const text = el.textContent || "";
+            if (text.includes("Podatek VAT")) {
+                // Пример: "Podatek VAT: 5,63zł"
+                const cleanPrice = text.replace(/[^\d.,]/g, '').replace(',', '.');
+                return parseFloat(cleanPrice) || 0;
+            }
+        }
+    } catch (e) {
+        console.error("Ошибка парсинга НДС:", e);
+    }
+    return 0;
+}
+
+// 2. ГЛАВНАЯ ФУНКЦИЯ
 function scrapeData() {
     const urlParams = new URLSearchParams(window.location.search);
     const orderId = urlParams.get('orderId') || "---";
@@ -93,18 +104,18 @@ function scrapeData() {
                 totalOrderPrice = fallbackEls[fallbackEls.length - 1].innerText;
             }
         }
-    } catch (e) {
-        console.error("Не удалось найти общую цену", e);
-    }
+    } catch (e) { console.error(e); }
 
     const parsedDate = getSalesDateFromHTML();
+    const parsedVat = getVatAmount(); // <-- Вызываем парсинг НДС
 
     return {
         orderId: orderId,
         saleDate: parsedDate || new Date().toISOString().slice(0, 10),
         sellerName: "AliExpress Seller",
-        lineItems: scrapeLineItems(), // Теперь товары содержат URL
+        lineItems: scrapeLineItems(),
         parsedTotalStr: totalOrderPrice,
+        totalVat: parsedVat, // <-- Передаем в генератор
         url: window.location.href
     };
 }
@@ -143,6 +154,5 @@ function injectButton() {
 const observer = new MutationObserver((mutations) => {
     injectButton();
 });
-
 observer.observe(document.body, { childList: true, subtree: true });
 injectButton();
