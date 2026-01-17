@@ -71,16 +71,16 @@ function getSalesDateFromHTML() {
     return null;
 }
 
-// 3. ПАРСИНГ ПРОДАВЦА (Имя и Ссылка)
+// 3. ПАРСИНГ ПРОДАВЦА (Имя убрано, только ссылка)
 function getSellerInfo() {
     const storeEl = document.querySelector('.order-detail-item-store');
+
+    // Имя оставляем дефолтным (парсинг удален по запросу)
     let name = "AliExpress Seller";
     let url = "";
 
     if (storeEl) {
-        // Имя продавца
-        const nameEl = storeEl.querySelector('.store-name');
-        if (nameEl) name = nameEl.innerText.trim();
+        // Мы НЕ парсим имя (.store-name), как вы и просили.
 
         // Ссылка на магазин
         const linkEl = storeEl.querySelector('a');
@@ -173,7 +173,7 @@ async function scrapeData() {
         orderId: orderId,
         saleDate: parsedDate || new Date().toISOString().slice(0, 10),
         seller: {
-            name: sellerInfo.name,
+            name: sellerInfo.name, // Будет "AliExpress Seller"
             storeUrl: sellerInfo.url
         },
         lineItems: scrapeLineItems(),
@@ -185,10 +185,8 @@ async function scrapeData() {
 
 // 6. ВНЕДРЕНИЕ КНОПКИ
 function injectButton() {
-    // Ищем блок статуса (место для кнопки)
     const targetContainer = document.querySelector('.order-status.order-block');
 
-    // Если контейнера нет или кнопка уже есть — выходим
     if (!targetContainer || document.getElementById('my-faktura-btn')) return;
 
     const btn = document.createElement("button");
@@ -201,10 +199,9 @@ function injectButton() {
     span.innerText = "Faktura (PDF)";
     btn.appendChild(span);
 
-    // Обработчик клика
     btn.onclick = async () => {
         const originalText = span.innerText;
-        span.innerText = "Pobieranie..."; // Индикатор загрузки
+        span.innerText = "Pobieranie...";
         btn.disabled = true;
 
         try {
@@ -228,12 +225,10 @@ function injectButton() {
 }
 
 // 7. НАБЛЮДАТЕЛЬ (Observer)
-// Следит за изменениями на странице, чтобы вернуть кнопку, если React её удалит
 const observer = new MutationObserver((mutations) => {
     injectButton();
 });
 
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Первичный запуск
 injectButton();

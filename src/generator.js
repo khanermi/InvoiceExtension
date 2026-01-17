@@ -27,15 +27,11 @@
 
         const initialDate = parsedData.saleDate || new Date().toISOString().slice(0, 10);
 
-        // Формируем начальные данные продавца
-        // Если пришло объект seller из скрапера, берем его.
         const sellerName = parsedData.seller?.name || "AliExpress Seller";
         const sellerUrl = parsedData.seller?.storeUrl || "";
-        // Адрес и налог пока пустые, пользователь заполнит сам
         const sellerAddress = "";
         const sellerTaxId = "";
 
-        // Склеиваем для старой логики PDF
         const initialSellerRaw = `${sellerName}\nVAT ID: ${sellerTaxId}\n${sellerAddress}`;
 
         const invoiceData = {
@@ -45,13 +41,12 @@
                 issueDate: initialDate,
                 saleDate: initialDate
             },
-            // НОВАЯ СТРУКТУРА СЕЛЛЕРА
             seller: {
                 name: sellerName,
                 taxId: sellerTaxId,
                 addressFull: sellerAddress,
                 storeUrl: sellerUrl,
-                rawText: initialSellerRaw // Для обратной совместимости с PDF
+                rawText: initialSellerRaw
             },
             buyer: {
                 ...buyerConfig,
@@ -71,13 +66,12 @@
     function initUI() {
         const data = window.currentInvoiceData;
 
-        // Шапка
+        // --- ИНИЦИАЛИЗАЦИЯ ИНПУТОВ ---
         bindInput('invoiceNumber', data.invoiceHeader.invoiceNumber, (val) => data.invoiceHeader.invoiceNumber = val);
         bindInput('issueDate', data.invoiceHeader.issueDate, (val) => data.invoiceHeader.issueDate = val);
         bindInput('saleDate', data.invoiceHeader.saleDate, (val) => data.invoiceHeader.saleDate = val);
         bindInput('orderId', data.invoiceHeader.orderId, (val) => data.invoiceHeader.orderId = val);
 
-        // --- ПРОДАВЕЦ (Новые поля) ---
         bindInput('sellerName', data.seller.name, (val) => {
             data.seller.name = val;
             updateSellerRawText();
@@ -95,12 +89,11 @@
         const storeBtn = document.getElementById('sellerStoreLink');
         if (data.seller.storeUrl) {
             storeBtn.href = data.seller.storeUrl;
-            storeBtn.style.display = 'inline-flex'; // Показываем кнопку
+            storeBtn.style.display = 'inline-flex';
         } else {
-            storeBtn.style.display = 'none'; // Скрываем, если ссылки нет
+            storeBtn.style.display = 'none';
         }
 
-        // --- ПОКУПАТЕЛЬ ---
         bindInput('buyerData', data.buyer.rawText, (val) => data.buyer.rawText = val);
 
         document.getElementById('sourceUrl').value = data.sourceUrl;
@@ -117,13 +110,86 @@
 
         renderItemsTable();
         updateTotalDisplay();
+
+        // --- ИНИЦИАЛИЗАЦИЯ AI MODAL ---
+        setupAiModal();
     }
 
-    // Хелпер для обновления "сырого" текста, чтобы PDF работал по-старому
+    // --- ЛОГИКА ДЛЯ AI POPUP ---
+    function setupAiModal() {
+        const modal = document.getElementById('aiModal');
+        const openBtn = document.getElementById('openAiModalBtn');
+        const closeBtn = document.querySelector('.close-modal');
+        const copyBtn = document.getElementById('copyPromptBtn');
+        const applyBtn = document.getElementById('applyAiDataBtn');
+        const jsonInput = document.getElementById('aiJsonInput');
+
+        // Открытие
+        openBtn.onclick = () => {
+            modal.style.display = "block";
+            jsonInput.value = ""; // Очищаем поле при открытии
+        };
+
+        // Закрытие (крестик)
+        closeBtn.onclick = () => {
+            modal.style.display = "none";
+        };
+
+        // Закрытие (клик вне окна)
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        };
+
+        // Копирование промпта
+        copyBtn.onclick = () => {
+            const promptText = document.getElementById('aiPromptText').innerText;
+            navigator.clipboard.writeText(promptText).then(() => {
+                copyBtn.innerText = "Skopiowano!";
+                setTimeout(() => copyBtn.innerText = "Kopiuj", 2000);
+            });
+        };
+
+        // Применение JSON
+        applyBtn.onclick = () => {
+            const rawJson = jsonInput.value.trim();
+            if (!rawJson) return;
+
+            try {
+                // Пытаемся почистить JSON (иногда Gemini добавляет ```json ... ```)
+                let cleanJson = rawJson.replace(/```json/g, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(cleanJson);
+
+                // Если все ок, обновляем данные модели
+                const data = window.currentInvoiceData;
+
+                if (parsed.name) data.seller.name = parsed.name;
+                if (parsed.taxId) data.seller.taxId = parsed.taxId;
+                if (parsed.address) data.seller.addressFull = parsed.address;
+
+                // Обновляем UI (Инпуты)
+                document.getElementById('sellerName').value = data.seller.name;
+                document.getElementById('sellerTaxId').value = data.seller.taxId;
+                document.getElementById('sellerAddress').value = data.seller.addressFull;
+
+                // Обновляем "сырой" текст для PDF
+                updateSellerRawText();
+
+                // Закрываем окно
+                modal.style.display = "none";
+                alert("Dane sprzedawcy zostały zaktualizowane!");
+
+            } catch (e) {
+                console.error(e);
+                alert("Błąd parsowania JSON! Sprawdź czy skopiowałeś poprawny format z Gemini.");
+            }
+        };
+    }
+
     function updateSellerRawText() {
         const s = window.currentInvoiceData.seller;
         const taxLine = s.taxId ? `VAT ID: ${s.taxId}` : "";
-        // Склеиваем: Имя + Налог + Адрес
         s.rawText = [s.name, taxLine, s.addressFull].filter(Boolean).join('\n');
     }
 
@@ -142,7 +208,6 @@
         window.currentInvoiceData.lineItems.forEach((item) => {
             const tr = document.createElement('tr');
 
-            // Иконка
             const tdLink = document.createElement('td');
             tdLink.style.textAlign = 'center';
             if (item.productUrl) {
@@ -155,7 +220,6 @@
             }
             tr.appendChild(tdLink);
 
-            // Название
             const tdName = document.createElement('td');
             const inputName = document.createElement('input');
             inputName.value = item.description;
@@ -163,7 +227,6 @@
             tdName.appendChild(inputName);
             tr.appendChild(tdName);
 
-            // Количество
             const tdQty = document.createElement('td');
             const inputQty = document.createElement('input');
             inputQty.type = "number";
@@ -176,7 +239,6 @@
             tdQty.appendChild(inputQty);
             tr.appendChild(tdQty);
 
-            // Цена Brutto
             const tdPrice = document.createElement('td');
             const inputPrice = document.createElement('input');
             inputPrice.type = "number";
@@ -190,7 +252,6 @@
             tdPrice.appendChild(inputPrice);
             tr.appendChild(tdPrice);
 
-            // Итог Brutto
             const tdTotal = document.createElement('td');
             const inputTotal = document.createElement('input');
             inputTotal.className = "price";
@@ -225,8 +286,6 @@
         document.getElementById('displayNet').innerText = totalNet.toFixed(2);
     }
 
-    // --- PDF ---
-    // (Код генерации PDF пока не трогаем, он использует rawText, который мы обновляем в updateSellerRawText)
     document.getElementById('generatePdfBtn').addEventListener('click', () => {
         const data = window.currentInvoiceData;
 
@@ -248,7 +307,6 @@
             ]);
         });
 
-        // Парсинг покупателя/продавца из rawText (старый метод)
         const parseAddressBox = (rawText) => {
             const lines = (rawText || "").split('\n');
             const name = lines[0] || "";
