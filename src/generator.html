@@ -227,18 +227,8 @@
         <h3 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">Dane sprzedawcy ze zrzutu ekranu</h3>
 
         <div class="ai-step">
-            <h4>1. Skopiuj ten Prompt</h4>
-            <div class="prompt-container">
-                <span id="aiPromptText" class="prompt-text">Extract seller data from this image. Return ONLY raw JSON (no markdown) with these keys: "name" (string), "taxId" (string, e.g. VAT/NIP), "address" (string, full address). If value is missing, use empty string.</span>
-                <button class="copy-icon-btn" id="copyPromptBtn" title="Skopiuj do schowka">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                </button>
-            </div>
-        </div>
-
-        <div class="ai-step">
-            <h4>2. Otwórz sklep i zrób zrzut ekranu</h4>
-            <p>Kliknij poniżej, aby otworzyć profil sklepu. Następnie zrób wycinek (Win+Shift+S) z danymi firmy (zakładka "Business Information" lub stopka).</p>
+            <h4>1. Otwórz sklep i zrób zrzut ekranu</h4>
+            <p>Kliknij poniżej, aby otworzyć profil sklepu. Zrób wycinek (Win+Shift+S) z danymi firmy (Business Information).</p>
             <a href="#" id="sellerStoreLink" target="_blank" class="store-btn-modal">
                 Otwórz profil sklepu
                 <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M318 1024l-64-64 448-448-448-448 64-64 512 512z"/></svg>
@@ -246,11 +236,22 @@
         </div>
 
         <div class="ai-step">
-            <h4>3. Zapytaj Gemini</h4>
-            <p>Przejdź do Gemini, wklej obrazek (Ctrl+V) i prompt (Ctrl+V).</p>
+            <h4>2. Zapytaj Gemini</h4>
+            <p>Otwórz Gemini w nowej karcie, aby przygotować się do wklejenia danych.</p>
             <a href="https://gemini.google.com/app" target="_blank" class="gemini-link">
                 Otwórz Gemini (gemini.google.com) &rarr;
             </a>
+        </div>
+
+        <div class="ai-step">
+            <h4>3. Skopiuj ten Prompt</h4>
+            <p>Wklej ten prompt do Gemini razem ze zrzutem ekranu.</p>
+            <div class="prompt-container">
+                <span id="aiPromptText" class="prompt-text">Extract seller data from this image. Return ONLY raw JSON (no markdown) with these keys: "name" (string), "taxId" (string, e.g. VAT/NIP), "address" (string, full address). If value is missing, use empty string.</span>
+                <button class="copy-icon-btn" id="copyPromptBtn" title="Skopiuj do schowka">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                </button>
+            </div>
         </div>
 
         <div class="ai-step">
